@@ -1,0 +1,26 @@
+# Netlify build + runtime configuration for the SnowFox AI Readiness app.
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Environment variables (set the actual values in Netlify UI — DO NOT commit real values):
+#   ANTHROPIC_API_KEY   — Claude API key
+#   NETLIFY_DATABASE_URL — Postgres URL (Netlify DB / Neon auto-injects this when the integration is enabled)
+#   RESEND_API_KEY      — Resend transactional email key
+#   SNOWFOX_LEADS_EMAIL — inbox that receives completed assessments (e.g. info@snowfoxsolutions.com)
+#   SNOWFOX_FROM_EMAIL  — verified "from" address for outbound email (e.g. assessments@snowfoxsolutions.com)
+#   PUBLIC_APP_URL      — canonical deployed URL, used for results links in email
+
+[functions]
+  node_bundler = "esbuild"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"

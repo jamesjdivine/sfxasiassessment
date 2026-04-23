@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+html, body {
+  height: 100%;
+  background: theme("colors.snow.100");
+  color: theme("colors.ink.900");
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+/* Subtle chat bubble animations */
+.bubble-enter {
+  animation: bubble-in 0.25s ease-out both;
+}
+@keyframes bubble-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
