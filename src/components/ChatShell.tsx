@@ -1,7 +1,15 @@
 "use client";
 
+/**
+ * Chat shell for the AI Readiness conversational assessment.
+ *
+ * Receives a pre-created sessionId from the parent (the IntakeForm builds the
+ * session when the user submits the intake screen). On mount, the shell calls
+ * /api/turn with no userReply to fetch the first scripted question, then
+ * advances each turn as the user picks options.
+ */
+
 import { useEffect, useRef, useState } from "react";
-import { CONTEXT_QUESTIONS } from "@/lib/questionnaire";
 import type { AnswerOption } from "@/lib/questionnaire";
 
 type Message = { role: "assistant" | "user"; content: string; id: string };
@@ -21,85 +29,49 @@ interface TurnResponse {
   };
 }
 
-export default function ChatShell({ onDone }: { onDone: (sessionId: string, score: TurnResponse["score"]) => void }) {
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+interface Props {
+  sessionId: string;
+  onDone: (sessionId: string, score: TurnResponse["score"]) => void;
+}
+
+export default function ChatShell({ sessionId, onDone }: Props) {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "intro",
+      role: "assistant",
+      content:
+        "Thanks — let's get started. I'll ask a series of questions and you'll get a 1–100 readiness score at the end.",
+    },
+  ]);
   const [options, setOptions] = useState<AnswerOption[] | null>(null);
   const [multiSelect, setMultiSelect] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [typing, setTyping] = useState(false);
-  const [contextIdx, setContextIdx] = useState(0);
-  const [contextAnswers, setContextAnswers] = useState<Record<string, string>>({});
   const [progress, setProgress] = useState<{ answered: number; total: number } | null>(null);
+  const startedRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Scroll to latest message whenever list changes.
+  // Scroll to latest message whenever the list changes.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, typing]);
 
-  // Opening greeting + first context question.
+  // Kick off the first scripted question on mount (guarded against React StrictMode double-mount).
   useEffect(() => {
-    setMessages([
-      {
-        id: "intro",
-        role: "assistant",
-        content:
-          "Hi! I'm the SnowFox AI Readiness assistant. This takes about 10 minutes — I'll ask a few questions and then you'll get a 1–100 score. Let's start with some quick context.",
-      },
-      {
-        id: "C1",
-        role: "assistant",
-        content: CONTEXT_QUESTIONS[0].text,
-      },
-    ]);
-    setOptions(CONTEXT_QUESTIONS[0].options.map((label, i) => ({ id: String(i), label, points: 0 })));
-    setMultiSelect(false);
+    if (startedRef.current) return;
+    startedRef.current = true;
+    void advance(undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handleContextPick(optionId: string) {
-    const current = CONTEXT_QUESTIONS[contextIdx];
-    const picked = current.options[Number(optionId)];
-    const newAnswers = { ...contextAnswers, [current.id]: picked };
-    setContextAnswers(newAnswers);
-
-    setMessages((m) => [
-      ...m,
-      { id: `u-${current.id}`, role: "user", content: picked },
-    ]);
-
-    const nextIdx = contextIdx + 1;
-    if (nextIdx < CONTEXT_QUESTIONS.length) {
-      const next = CONTEXT_QUESTIONS[nextIdx];
-      setContextIdx(nextIdx);
-      setMessages((m) => [
-        ...m,
-        { id: next.id, role: "assistant", content: next.text },
-      ]);
-      setOptions(next.options.map((label, i) => ({ id: String(i), label, points: 0 })));
-    } else {
-      // Context done — create a session and kick off the first real turn.
-      setOptions(null);
-      setTyping(true);
-      const res = await fetch("/api/session", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ context: newAnswers }),
-      });
-      const { sessionId: newId } = await res.json();
-      setSessionId(newId);
-      await advance(newId);
-    }
-  }
-
-  async function advance(sid: string, userReply?: string) {
+  async function advance(userReply: string | undefined) {
     setTyping(true);
     setOptions(null);
     try {
       const res = await fetch("/api/turn", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ sessionId: sid, userReply }),
+        body: JSON.stringify({ sessionId, userReply }),
       });
       const data = (await res.json()) as TurnResponse;
       setTyping(false);
@@ -113,11 +85,10 @@ export default function ChatShell({ onDone }: { onDone: (sessionId: string, scor
             id: `done-${Date.now()}`,
             role: "assistant",
             content:
-              data.assistantMessage ??
-              "All done — generating your score now.",
+              data.assistantMessage ?? "All done — generating your score now.",
           },
         ]);
-        onDone(sid, data.score);
+        onDone(sessionId, data.score);
         return;
       }
 
@@ -130,7 +101,7 @@ export default function ChatShell({ onDone }: { onDone: (sessionId: string, scor
       if (data.options) setOptions(data.options);
       setMultiSelect(Boolean(data.multiSelect));
       setSelected([]);
-    } catch (err) {
+    } catch {
       setTyping(false);
       setMessages((m) => [
         ...m,
@@ -145,10 +116,6 @@ export default function ChatShell({ onDone }: { onDone: (sessionId: string, scor
   }
 
   async function handleOptionPick(optionId: string) {
-    if (!sessionId) {
-      // Still in context phase.
-      return handleContextPick(optionId);
-    }
     if (multiSelect) {
       const newSel = selected.includes(optionId)
         ? selected.filter((x) => x !== optionId)
@@ -162,13 +129,13 @@ export default function ChatShell({ onDone }: { onDone: (sessionId: string, scor
       ...m,
       { id: `u-${Date.now()}`, role: "user", content: picked?.label ?? optionId },
     ]);
-    // We send the option LABEL to Claude as the user reply — Claude extracts the
-    // canonical option id. This lets the same endpoint handle free-text replies too.
-    await advance(sessionId, picked?.label ?? optionId);
+    // Send the option LABEL to Claude as the user reply — Claude maps it back to
+    // the canonical option id. Same endpoint also handles free-text replies.
+    await advance(picked?.label ?? optionId);
   }
 
   async function submitMultiSelect() {
-    if (!sessionId || selected.length === 0) return;
+    if (selected.length === 0) return;
     const labels = selected
       .map((id) => options?.find((o) => o.id === id)?.label)
       .filter(Boolean)
@@ -177,7 +144,7 @@ export default function ChatShell({ onDone }: { onDone: (sessionId: string, scor
       ...m,
       { id: `u-${Date.now()}`, role: "user", content: labels },
     ]);
-    await advance(sessionId, labels);
+    await advance(labels);
   }
 
   return (
