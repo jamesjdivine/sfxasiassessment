@@ -155,6 +155,15 @@ export const CONTEXT_QUESTIONS: ContextQuestion[] = [
     text: "What is your organization's approximate annual revenue?",
     options: ["<$1M", "$1M-$10M", "$10M-$50M", "$50M-$250M", "$250M-$1B", ">$1B"],
   },
+  {
+    id: "C4",
+    text: "Where does your business operate?",
+    options: [
+      "Physical locations only",
+      "Online or digital only",
+      "Both physical and online",
+    ],
+  },
 ];
 
 /**

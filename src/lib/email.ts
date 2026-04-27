@@ -81,7 +81,8 @@ export async function sendLeadToSnowFox(lead: LeadPayload): Promise<void> {
       <p style="margin:0;">
         Industry: ${lead.context["C1"] ?? "—"}<br/>
         Employees: ${lead.context["C2"] ?? "—"}<br/>
-        Revenue: ${lead.context["C3"] ?? "—"}
+        Revenue: ${lead.context["C3"] ?? "—"}<br/>
+        Operations: ${lead.context["C4"] ?? "—"}
       </p>
 
       <h3 style="margin-bottom:4px;margin-top:18px;">Score: ${lead.score.score} / 100 — ${lead.score.band.label}</h3>

@@ -41,7 +41,11 @@ RULES
       and return a short clarifying message.
 3. Never guess the user's industry, size, or score. Never promise what SnowFox will do.
 4. Keep every message under ~60 words. No emoji.
-5. Respond ONLY with JSON matching the schema provided in each tool call.`;
+5. Respond ONLY with JSON matching the schema provided in each tool call.
+6. NEVER reference how many questions remain, are coming, or are left. Do NOT say \
+   "one more question", "last question", "final question", "almost done", "just a few more", \
+   "next-to-last", or any phrasing that implies position in or progress through the assessment. \
+   The UI shows progress separately. Just present the question naturally without count language.`;
 
 export interface NextTurnInput {
   question: Question | FollowUpQuestion;
