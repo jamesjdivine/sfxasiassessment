@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import IntakeForm from "@/components/IntakeForm";
 import ChatShell from "@/components/ChatShell";
 import ScoreCard from "@/components/ScoreCard";
 import LeadForm from "@/components/LeadForm";
@@ -13,9 +14,11 @@ interface FinalScore {
 
 export default function AssessmentPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [contextAnswers, setContextAnswers] = useState<Record<string, string> | null>(null);
   const [final, setFinal] = useState<FinalScore | null>(null);
   const [leadSent, setLeadSent] = useState(false);
 
+  // Phase 3 — score + lead capture
   if (final && sessionId) {
     return (
       <>
@@ -37,11 +40,25 @@ export default function AssessmentPage() {
     );
   }
 
+  // Phase 2 — chat assessment (intake done, session created)
+  if (sessionId && contextAnswers) {
+    return (
+      <ChatShell
+        sessionId={sessionId}
+        onDone={(sid, score) => {
+          if (score) setFinal(score);
+          setSessionId(sid);
+        }}
+      />
+    );
+  }
+
+  // Phase 1 — intake form (default landing state)
   return (
-    <ChatShell
-      onDone={(sid, score) => {
+    <IntakeForm
+      onSubmitted={(sid, ctx) => {
         setSessionId(sid);
-        if (score) setFinal(score);
+        setContextAnswers(ctx);
       }}
     />
   );
