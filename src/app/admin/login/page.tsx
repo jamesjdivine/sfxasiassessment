@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 
-export default function AdminLoginPage() {
+function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/admin";
@@ -35,37 +35,44 @@ export default function AdminLoginPage() {
   }
 
   return (
+    <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+      <label className="block">
+        <span className="text-sm font-medium text-ink-700">Password</span>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoFocus
+          required
+          className="mt-1 block w-full rounded-md border border-snow-300 bg-snow-50 px-3 py-2 focus:border-navy-700 focus:outline-none"
+        />
+      </label>
+
+      {error && (
+        <div role="alert" className="rounded-md border border-fox-600/30 bg-fox-600/5 px-3 py-2 text-sm text-fox-600">
+          {error}
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={!password || submitting}
+        className="w-full rounded-md bg-fox-600 disabled:bg-snow-300 disabled:text-ink-400 text-snow-50 font-semibold px-4 py-2.5 transition"
+      >
+        {submitting ? "Signing in…" : "Sign in"}
+      </button>
+    </form>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
     <div className="max-w-sm mx-auto px-4 py-16">
       <h1 className="text-2xl font-semibold text-navy-900">SnowFox Admin</h1>
       <p className="text-ink-500 text-sm mt-1">Sign in to view assessment results.</p>
-
-      <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-        <label className="block">
-          <span className="text-sm font-medium text-ink-700">Password</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoFocus
-            required
-            className="mt-1 block w-full rounded-md border border-snow-300 bg-snow-50 px-3 py-2 focus:border-navy-700 focus:outline-none"
-          />
-        </label>
-
-        {error && (
-          <div role="alert" className="rounded-md border border-fox-600/30 bg-fox-600/5 px-3 py-2 text-sm text-fox-600">
-            {error}
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={!password || submitting}
-          className="w-full rounded-md bg-fox-600 disabled:bg-snow-300 disabled:text-ink-400 text-snow-50 font-semibold px-4 py-2.5 transition"
-        >
-          {submitting ? "Signing in…" : "Sign in"}
-        </button>
-      </form>
+      <Suspense fallback={null}>
+        <LoginForm />
+      </Suspense>
     </div>
   );
 }
