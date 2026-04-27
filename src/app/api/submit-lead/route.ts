@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createLead, getSession, markLeadEmailed } from "@/lib/db";
-import { sendLeadToSnowFox, sendResultsToProspect, type LeadPayload } from "@/lib/email";
+import { sendResultsToProspect, type LeadPayload } from "@/lib/email";
 import { computeScore, type Answers } from "@/lib/scoring";
 
 export const runtime = "nodejs";
@@ -74,28 +74,28 @@ export async function POST(req: NextRequest) {
       score,
     };
 
-    // Fire both emails concurrently. If one fails we still want the other to go.
-    const [snowfoxRes, prospectRes] = await Promise.allSettled([
-      sendLeadToSnowFox(payload),
-      sendResultsToProspect(payload),
-    ]);
-
-    if (snowfoxRes.status === "fulfilled") {
-      await markLeadEmailed(lead.id, "snowfox");
-    } else {
-      await markLeadEmailed(lead.id, "snowfox", snowfoxRes.reason?.message ?? String(snowfoxRes.reason));
+    // Single branded email to the prospect, with the SnowFox leads inbox on CC.
+    // Captured in a try/catch so DB lead row is preserved even if email fails
+    // (e.g. Resend not yet configured).
+    let emailed = false;
+    let emailError: string | undefined;
+    try {
+      await sendResultsToProspect(payload);
+      emailed = true;
+    } catch (err) {
+      emailError = err instanceof Error ? err.message : String(err);
     }
-    if (prospectRes.status === "fulfilled") {
+
+    if (emailed) {
       await markLeadEmailed(lead.id, "prospect");
     } else {
-      await markLeadEmailed(lead.id, "prospect", prospectRes.reason?.message ?? String(prospectRes.reason));
+      await markLeadEmailed(lead.id, "prospect", emailError);
     }
 
     return NextResponse.json({
       ok: true,
       leadId: lead.id,
-      snowfoxEmailed: snowfoxRes.status === "fulfilled",
-      prospectEmailed: prospectRes.status === "fulfilled",
+      emailed,
     });
   } catch (err) {
     return NextResponse.json(
