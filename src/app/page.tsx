@@ -13,7 +13,8 @@ export default function HomePage() {
       <p className="mt-5 text-lg text-ink-500 max-w-2xl">
         Answer a short set of questions in a friendly, conversational format.
         You'll receive a <strong>1–100 AI Readiness Score</strong> with a category-by-category
-        breakdown and a clear recommended roadmap — no sales pitch required.
+        breakdown and a clear recommended roadmap — no sales pitch required.{" "}
+        Your responses are confidential, and will not be shared outside of SnowFox.
       </p>
 
       <div className="mt-8 flex flex-wrap gap-3">
