@@ -141,3 +141,126 @@ export async function markLeadEmailed(
     await sql`UPDATE leads SET prospect_emailed_at = NOW(), email_error = ${errorMessage ?? null} WHERE id = ${id}`;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Admin views — read-only summaries for the password-protected /admin pages.
+// ---------------------------------------------------------------------------
+
+export interface AdminLeadSummary {
+  lead_id: string;
+  session_id: string;
+  created_at: string;
+  full_name: string;
+  work_email: string;
+  company: string | null;
+  job_title: string | null;
+  phone: string | null;
+  industry: string | null;
+  employees: string | null;
+  revenue: string | null;
+  operations: string | null;
+  final_score: number | null;
+  final_band: string | null;
+  prospect_emailed_at: string | null;
+  email_error: string | null;
+}
+
+export async function listRecentLeads(limit = 50): Promise<AdminLeadSummary[]> {
+  const sql = getClient();
+  const rows = await sql`
+    SELECT
+      l.id                         AS lead_id,
+      l.session_id                 AS session_id,
+      l.created_at                 AS created_at,
+      l.full_name                  AS full_name,
+      l.work_email                 AS work_email,
+      l.company                    AS company,
+      l.job_title                  AS job_title,
+      l.phone                      AS phone,
+      s.context->>'C1'             AS industry,
+      s.context->>'C2'             AS employees,
+      s.context->>'C3'             AS revenue,
+      s.context->>'C4'             AS operations,
+      s.final_score                AS final_score,
+      s.final_band                 AS final_band,
+      l.prospect_emailed_at        AS prospect_emailed_at,
+      l.email_error                AS email_error
+    FROM leads l
+    JOIN sessions s ON s.id = l.session_id
+    ORDER BY l.created_at DESC
+    LIMIT ${limit}
+  `;
+  return rows as unknown as AdminLeadSummary[];
+}
+
+export interface AdminSessionSummary {
+  id: string;
+  created_at: string;
+  completed_at: string | null;
+  final_score: number | null;
+  final_band: string | null;
+  industry: string | null;
+  employees: string | null;
+  revenue: string | null;
+  operations: string | null;
+  has_lead: boolean;
+}
+
+export async function listRecentSessions(limit = 50): Promise<AdminSessionSummary[]> {
+  const sql = getClient();
+  const rows = await sql`
+    SELECT
+      s.id                         AS id,
+      s.created_at                 AS created_at,
+      s.completed_at               AS completed_at,
+      s.final_score                AS final_score,
+      s.final_band                 AS final_band,
+      s.context->>'C1'             AS industry,
+      s.context->>'C2'             AS employees,
+      s.context->>'C3'             AS revenue,
+      s.context->>'C4'             AS operations,
+      EXISTS (SELECT 1 FROM leads l WHERE l.session_id = s.id) AS has_lead
+    FROM sessions s
+    WHERE s.completed_at IS NOT NULL
+    ORDER BY s.completed_at DESC
+    LIMIT ${limit}
+  `;
+  return rows as unknown as AdminSessionSummary[];
+}
+
+export interface AdminCounts {
+  sessions_total: number;
+  completed_total: number;
+  completed_7d: number;
+  leads_total: number;
+  leads_7d: number;
+  avg_score: number | null;
+}
+
+export async function getAdminCounts(): Promise<AdminCounts> {
+  const sql = getClient();
+  const rows = await sql`
+    SELECT
+      (SELECT COUNT(*)::INT FROM sessions)                                              AS sessions_total,
+      (SELECT COUNT(*)::INT FROM sessions WHERE completed_at IS NOT NULL)               AS completed_total,
+      (SELECT COUNT(*)::INT FROM sessions WHERE completed_at >= NOW() - INTERVAL '7 days')  AS completed_7d,
+      (SELECT COUNT(*)::INT FROM leads)                                                 AS leads_total,
+      (SELECT COUNT(*)::INT FROM leads WHERE created_at >= NOW() - INTERVAL '7 days')   AS leads_7d,
+      (SELECT ROUND(AVG(final_score))::INT FROM sessions WHERE final_score IS NOT NULL) AS avg_score
+  `;
+  const r = (rows as unknown as AdminCounts[])[0];
+  return r;
+}
+
+export interface AdminSessionDetail {
+  session: SessionRow;
+  lead: LeadRow | null;
+}
+
+export async function getSessionDetail(sessionId: string): Promise<AdminSessionDetail | null> {
+  const sql = getClient();
+  const sessionRows = (await sql`SELECT * FROM sessions WHERE id = ${sessionId}`) as unknown as SessionRow[];
+  if (sessionRows.length === 0) return null;
+  const leadRows = (await sql`SELECT * FROM leads WHERE session_id = ${sessionId} LIMIT 1`) as unknown as LeadRow[];
+  return { session: sessionRows[0], lead: leadRows[0] ?? null };
+}

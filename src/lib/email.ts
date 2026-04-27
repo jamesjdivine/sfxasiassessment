@@ -1,8 +1,10 @@
 /**
  * Resend-based transactional email.
  *
- * Two templates: one to SnowFox (internal, fact-dense) and one to the prospect
- * (branded, presentation-friendly). Both share the same score payload.
+ * Single message: a branded results email goes to the prospect, with the SnowFox
+ * leads inbox (jdivine@snowfoxsolutions.com) on CC so SnowFox sees exactly what
+ * the prospect sees plus the score-and-context summary at the top. Sending
+ * domain is snowfoxsolutions.ai (configured via SNOWFOX_FROM_EMAIL).
  */
 
 import { Resend } from "resend";
@@ -23,7 +25,7 @@ export interface LeadPayload {
   phone?: string;
   jobTitle?: string;
   notes?: string;
-  context: Record<string, string>; // C1/C2/C3 answers
+  context: Record<string, string>; // C1/C2/C3/C4 answers
   score: ScoreResult;
 }
 
@@ -55,63 +57,14 @@ function categoryTableHtml(score: ScoreResult): string {
     </table>`;
 }
 
-/** Internal email to SnowFox — optimized for quick scanning + follow-up. */
-export async function sendLeadToSnowFox(lead: LeadPayload): Promise<void> {
-  const to = process.env.SNOWFOX_LEADS_EMAIL;
-  const from = process.env.SNOWFOX_FROM_EMAIL;
-  if (!to || !from) throw new Error("SNOWFOX_LEADS_EMAIL and SNOWFOX_FROM_EMAIL must be set.");
-
-  const subject = `AI Readiness lead: ${lead.fullName}${
-    lead.company ? ` (${lead.company})` : ""
-  } — Score ${lead.score.score} / ${lead.score.band.label}`;
-
-  const html = `
-    <div style="font-family:Arial,sans-serif;color:#0B1726;max-width:640px;">
-      <h2 style="color:#0F1218;margin-bottom:4px;">New AI Readiness lead</h2>
-      <p style="color:#475569;margin-top:0;">Session <code>${lead.sessionId}</code></p>
-
-      <h3 style="margin-bottom:4px;">Contact</h3>
-      <p style="margin:0;">
-        <strong>${lead.fullName}</strong>${lead.jobTitle ? ` — ${lead.jobTitle}` : ""}<br/>
-        <a href="mailto:${lead.workEmail}">${lead.workEmail}</a>${lead.phone ? ` · ${lead.phone}` : ""}<br/>
-        ${lead.company ?? ""}
-      </p>
-
-      <h3 style="margin-bottom:4px;margin-top:18px;">Business context</h3>
-      <p style="margin:0;">
-        Industry: ${lead.context["C1"] ?? "—"}<br/>
-        Employees: ${lead.context["C2"] ?? "—"}<br/>
-        Revenue: ${lead.context["C3"] ?? "—"}<br/>
-        Operations: ${lead.context["C4"] ?? "—"}
-      </p>
-
-      <h3 style="margin-bottom:4px;margin-top:18px;">Score: ${lead.score.score} / 100 — ${lead.score.band.label}</h3>
-      <p style="margin:0;color:#475569;">${lead.score.band.meaning}</p>
-
-      <h3 style="margin-bottom:4px;margin-top:18px;">Category breakdown</h3>
-      ${categoryTableHtml(lead.score)}
-
-      ${lead.notes ? `<h3 style="margin-bottom:4px;margin-top:18px;">Their note</h3><p>${escapeHtml(lead.notes)}</p>` : ""}
-
-      <p style="margin-top:24px;color:#475569;font-size:12px;">
-        Suggested next step: route to the paid <em>AI Readiness Assessment</em> ($5K–$10K fixed-fee)
-        if their score is 40+ and they selected a scored industry, otherwise start with a
-        Technology Clarity Assessment.
-      </p>
-    </div>`;
-
-  await resend().emails.send({
-    from,
-    to,
-    replyTo: lead.workEmail,
-    subject,
-    html,
-  });
-}
-
-/** Branded email to the prospect with their own score + recommended next steps. */
+/**
+ * Branded email to the prospect with their own score + recommended next steps.
+ * jdivine@snowfoxsolutions.com (or whatever SNOWFOX_LEADS_EMAIL points at) is
+ * CC'd so SnowFox sees the same message and can follow up directly.
+ */
 export async function sendResultsToProspect(lead: LeadPayload): Promise<void> {
   const from = process.env.SNOWFOX_FROM_EMAIL;
+  const cc = process.env.SNOWFOX_LEADS_EMAIL;
   if (!from) throw new Error("SNOWFOX_FROM_EMAIL must be set.");
 
   const subject = `Your AI Readiness Score: ${lead.score.score} / 100 (${lead.score.band.label})`;
@@ -153,9 +106,16 @@ export async function sendResultsToProspect(lead: LeadPayload): Promise<void> {
   await resend().emails.send({
     from,
     to: lead.workEmail,
+    cc: cc ? [cc] : undefined,
+    replyTo: cc, // so the prospect's reply lands in the SnowFox inbox
     subject,
     html,
   });
+}
+
+function escapeFirstName(full: string): string {
+  const first = (full.split(/\s+/)[0] ?? "").trim();
+  return escapeHtml(first || "there");
 }
 
 function escapeHtml(s: string): string {
@@ -165,11 +125,6 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-}
-
-function escapeFirstName(full: string): string {
-  const first = (full.split(/\s+/)[0] ?? "").trim();
-  return escapeHtml(first || "there");
 }
 
 // Side-effect-free re-export so consumers can type-check against category codes.
