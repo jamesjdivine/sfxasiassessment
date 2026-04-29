@@ -7,11 +7,22 @@
  *   fullName: string, workEmail: string,
  *   company?: string, phone?: string, jobTitle?: string, notes?: string
  * }
+ *
+ * Two emails are dispatched:
+ *   1. Prospect-facing branded results email (no CC).
+ *   2. SnowFox internal notification to SNOWFOX_LEADS_EMAIL with the
+ *      AI Strategy Plan PDF attached.
+ * Email failures never block the lead row from being persisted.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { createLead, getSession, markLeadEmailed } from "@/lib/db";
-import { sendResultsToProspect, type LeadPayload } from "@/lib/email";
+import {
+  sendResultsToProspect,
+  sendInternalLeadNotification,
+  type LeadPayload,
+} from "@/lib/email";
+import { generateStrategyPlanPdf } from "@/lib/pdf";
 import { computeScore, type Answers } from "@/lib/scoring";
 
 export const runtime = "nodejs";
@@ -74,28 +85,57 @@ export async function POST(req: NextRequest) {
       score,
     };
 
-    // Single branded email to the prospect, with the SnowFox leads inbox on CC.
-    // Captured in a try/catch so DB lead row is preserved even if email fails
-    // (e.g. Resend not yet configured).
-    let emailed = false;
-    let emailError: string | undefined;
+    // Prospect-facing email — captured in try/catch so DB row is preserved on failure.
+    let prospectEmailed = false;
+    let prospectError: string | undefined;
     try {
       await sendResultsToProspect(payload);
-      emailed = true;
+      prospectEmailed = true;
     } catch (err) {
-      emailError = err instanceof Error ? err.message : String(err);
+      prospectError = err instanceof Error ? err.message : String(err);
     }
 
-    if (emailed) {
+    // SnowFox internal email + PDF — independent of prospect email success.
+    let internalEmailed = false;
+    let internalError: string | undefined;
+    try {
+      const pdf = await generateStrategyPlanPdf({
+        fullName: body.fullName,
+        workEmail: body.workEmail,
+        company: body.company,
+        phone: body.phone,
+        jobTitle: body.jobTitle,
+        notes: body.notes,
+        context: answers.context,
+        coreAnswers: answers.core,
+        followupAnswers: answers.followUps,
+        score,
+      });
+      const safeCompany = (body.company ?? body.fullName)
+        .replace(/[^a-zA-Z0-9 _-]/g, "")
+        .replace(/\s+/g, "_")
+        .slice(0, 60) || "Lead";
+      const filename = `SnowFox_AI_Strategy_Plan_${safeCompany}.pdf`;
+      await sendInternalLeadNotification(payload, pdf, filename);
+      internalEmailed = true;
+    } catch (err) {
+      internalError = err instanceof Error ? err.message : String(err);
+    }
+
+    // Persist email status — record the prospect-facing outcome under the existing
+    // "prospect" recipient slot so the admin UI continues to read correctly.
+    if (prospectEmailed) {
       await markLeadEmailed(lead.id, "prospect");
     } else {
-      await markLeadEmailed(lead.id, "prospect", emailError);
+      await markLeadEmailed(lead.id, "prospect", prospectError);
     }
 
     return NextResponse.json({
       ok: true,
       leadId: lead.id,
-      emailed,
+      emailed: prospectEmailed,
+      internalEmailed,
+      ...(internalError ? { internalError } : {}),
     });
   } catch (err) {
     return NextResponse.json(
