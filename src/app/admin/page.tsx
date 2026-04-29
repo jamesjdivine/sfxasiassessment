@@ -79,6 +79,7 @@ export default async function AdminPage() {
                   <Th>Industry</Th>
                   <Th>Size</Th>
                   <Th>Email status</Th>
+                  <Th>Strategy plan</Th>
                 </tr>
               </thead>
               <tbody>
@@ -114,6 +115,9 @@ export default async function AdminPage() {
                         <span className="text-ink-400">Pending</span>
                       )}
                     </Td>
+                    <Td>
+                      <PdfButton sessionId={l.session_id} />
+                    </Td>
                   </tr>
                 ))}
               </tbody>
@@ -143,6 +147,7 @@ export default async function AdminPage() {
                   <Th>Revenue</Th>
                   <Th>Operations</Th>
                   <Th>Lead?</Th>
+                  <Th>Strategy plan</Th>
                 </tr>
               </thead>
               <tbody>
@@ -161,6 +166,9 @@ export default async function AdminPage() {
                     <Td>{s.revenue ?? "—"}</Td>
                     <Td>{s.operations ?? "—"}</Td>
                     <Td>{s.has_lead ? "Yes" : "—"}</Td>
+                    <Td>
+                      <PdfButton sessionId={s.id} />
+                    </Td>
                   </tr>
                 ))}
               </tbody>
@@ -196,5 +204,19 @@ function Empty({ children }: { children: React.ReactNode }) {
     <div className="rounded-xl border border-dashed border-snow-300 bg-snow-50 p-6 text-center text-ink-500 text-sm">
       {children}
     </div>
+  );
+}
+
+function PdfButton({ sessionId }: { sessionId: string }) {
+  const href = `/api/admin/strategy-pdf/${sessionId}`;
+  return (
+    <a
+      href={href}
+      className="inline-flex items-center rounded-md border border-navy-700 bg-snow-50 px-2 py-1 text-xs font-medium text-navy-700 hover:bg-navy-700 hover:text-snow-50 transition"
+      title="Download SnowFox AI Strategy Plan PDF"
+      download
+    >
+      Download PDF
+    </a>
   );
 }
