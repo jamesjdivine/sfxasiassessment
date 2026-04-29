@@ -30,8 +30,8 @@ export default function AssessmentPage() {
             <div className="rounded-xl border border-snow-200 bg-snow-50 p-6 text-center">
               <div className="text-2xl font-semibold text-navy-900">Thanks — you're all set.</div>
               <p className="text-ink-500 mt-2">
-                A copy of your score is on its way to your inbox, and a SnowFox advisor will be in
-                touch within one business day.
+                A copy of your score is on its way to your inbox. One of our senior business
+                advisors will review your results as well and will be in touch.
               </p>
             </div>
           </div>
