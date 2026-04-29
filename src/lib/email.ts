@@ -93,9 +93,9 @@ export async function sendResultsToProspect(lead: LeadPayload): Promise<void> {
       ${categoryTableHtml(lead.score)}
 
       <p style="margin-top:24px;">
-        Want a more rigorous review? SnowFox offers a paid
-        <strong>AI Readiness Assessment</strong> (1–2 days on-site, fixed fee $5K–$10K) that
-        adds hands-on data review, a prioritized use-case shortlist, and a governance plan.
+        Want a more rigorous review? SnowFox offers a deeper
+        <strong>AI Readiness Assessment</strong> that adds hands-on data review,
+        a prioritized use-case shortlist, and a governance plan.
       </p>
       <p>
         One of our senior business advisors will be in touch shortly to walk through your results.

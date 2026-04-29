@@ -1,11 +1,13 @@
 /**
- * SnowFox-branded AI Strategy Plan — generated as a PDF for the internal SnowFox
- * leads inbox only. Built with pdf-lib so it works in Netlify's Node serverless
- * runtime without external font files (uses standard Helvetica).
+ * SnowFox-branded AI Strategy Plan — customer-facing PDF that can be sent to
+ * the prospect either automatically (attached to the SnowFox internal lead
+ * email) or manually from the admin dashboard as a follow-up. Built with
+ * pdf-lib so it works in Netlify's Node serverless runtime without external
+ * font files (uses standard Helvetica).
  *
- * The plan is a sales briefing: cover, executive summary, business context,
+ * The plan is structured as: cover, executive summary, business context,
  * category breakdown, prioritized recommendations driven by lowest-scoring
- * categories, the prospect's full answers, and a suggested SnowFox engagement.
+ * categories, the recipient's full answers, and recommended SnowFox engagement.
  */
 
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb, type RGB } from "pdf-lib";
@@ -60,7 +62,7 @@ export async function generateStrategyPlanPdf(input: StrategyPdfInput): Promise<
   const doc = await PDFDocument.create();
   doc.setTitle(`SnowFox AI Strategy Plan — ${input.company ?? input.fullName}`);
   doc.setAuthor("SnowFox Solutions");
-  doc.setSubject("AI Readiness Assessment — Internal Strategy Briefing");
+  doc.setSubject("AI Readiness Assessment — Personalized Strategy Plan");
   doc.setCreator("SnowFox AI Readiness Assessment");
   doc.setProducer("SnowFox Solutions");
   doc.setCreationDate(new Date());
@@ -257,7 +259,7 @@ function drawCoverPage(ctx: DrawCtx, input: StrategyPdfInput) {
     font: fonts.bold,
     color: WHITE,
   });
-  page.drawText("AI Readiness Assessment — Internal Strategy Briefing", {
+  page.drawText("AI Readiness Assessment — Your Personalized Strategy Plan", {
     x: MARGIN_X,
     y: PAGE_H - 168,
     size: 12,
@@ -305,9 +307,9 @@ function drawCoverPage(ctx: DrawCtx, input: StrategyPdfInput) {
     color: WHITE,
   });
 
-  // Prospect block
+  // Recipient block
   ctx.y = badgeY - 40;
-  drawText(ctx, "Prospect", { font: fonts.bold, size: 11, color: INK_500 });
+  drawText(ctx, "Prepared for", { font: fonts.bold, size: 11, color: INK_500 });
   ctx.y -= 2;
   drawText(ctx, input.fullName, { font: fonts.bold, size: 16, color: NAVY_900 });
   if (input.jobTitle || input.company) {
@@ -326,15 +328,15 @@ function drawCoverPage(ctx: DrawCtx, input: StrategyPdfInput) {
   });
   drawText(ctx, `Generated ${dateStr}`, { size: 9.5, color: INK_500, font: fonts.oblique });
 
-  // Confidential note at bottom
-  page.drawText("CONFIDENTIAL — SnowFox internal use only.", {
+  // Tagline at bottom
+  page.drawText("Prepared by SnowFox Solutions", {
     x: MARGIN_X,
     y: 64,
-    size: 9,
+    size: 10,
     font: fonts.bold,
-    color: FOX_RED,
+    color: NAVY_900,
   });
-  page.drawText("Do not share outside SnowFox without prospect consent.", {
+  page.drawText("snowfoxsolutions.com · Blue Ash, Ohio", {
     x: MARGIN_X,
     y: 50,
     size: 9,
@@ -349,7 +351,7 @@ function drawExecutiveSummary(ctx: DrawCtx, input: StrategyPdfInput) {
   drawHeading(ctx, "Executive Summary", 18);
   drawParagraph(
     ctx,
-    `${firstName(input.fullName)}${input.company ? ` (${input.company})` : ""} scored ${input.score.score} of 100 on the SnowFox AI Readiness Assessment, placing them in the ${input.score.band.label} band.`
+    `${firstName(input.fullName)}${input.company ? ` (${input.company})` : ""}, you scored ${input.score.score} of 100 on the SnowFox AI Readiness Assessment, which places you in the ${input.score.band.label} band.`
   );
   drawSubheading(ctx, "What this means");
   drawParagraph(ctx, input.score.band.meaning);
@@ -369,7 +371,7 @@ function drawBusinessContext(ctx: DrawCtx, input: StrategyPdfInput) {
     if (val) rows.push({ label: stripQuestionMark(c.text), value: val });
   }
   if (input.notes) {
-    rows.push({ label: "Prospect notes", value: input.notes });
+    rows.push({ label: "Notes you shared", value: input.notes });
   }
 
   drawTwoColumnList(ctx, rows);
@@ -486,7 +488,7 @@ function drawRecommendations(ctx: DrawCtx, input: StrategyPdfInput) {
   drawHeading(ctx, "Strategy Recommendations", 16);
   drawParagraph(
     ctx,
-    "Prioritized below are the three categories with the largest gap to mature performance, with a suggested first move for each.",
+    "Below are the three categories with the largest gap to mature performance, with a suggested first move for each.",
     INK_500,
     10
   );
@@ -515,8 +517,8 @@ function drawRecommendations(ctx: DrawCtx, input: StrategyPdfInput) {
     const f7 = FOLLOW_UPS.find((f) => f.id === "F7");
     const opt = f7?.options.find((o) => o.id === outcome);
     if (opt) {
-      drawSubheading(ctx, "Stated business outcome");
-      drawParagraph(ctx, `Prospect named "${opt.label}" as the #1 outcome they hope AI will drive. Anchor every SnowFox proposal back to this outcome.`);
+      drawSubheading(ctx, "Your top business outcome");
+      drawParagraph(ctx, `You identified "${opt.label}" as the #1 outcome you hope AI will drive. Every recommendation in this plan is meant to support that outcome.`);
     }
   }
 
@@ -526,10 +528,10 @@ function drawRecommendations(ctx: DrawCtx, input: StrategyPdfInput) {
 /* ───────── Answers appendix ───────── */
 
 function drawAnswersAppendix(ctx: DrawCtx, input: StrategyPdfInput) {
-  drawHeading(ctx, "Full Answer Log", 14);
+  drawHeading(ctx, "Your Answers", 14);
   drawParagraph(
     ctx,
-    "Verbatim answers the prospect gave during the assessment, grouped by category.",
+    "Verbatim answers you gave during the assessment, grouped by category.",
     INK_500,
     10
   );
@@ -584,10 +586,14 @@ function followupLabels(
 
 function drawFooter(ctx: DrawCtx, _input: StrategyPdfInput) {
   drawRule(ctx);
-  drawHeading(ctx, "Suggested SnowFox Engagement", 14);
+  drawHeading(ctx, "Working with SnowFox", 14);
   drawParagraph(
     ctx,
-    "Pitch the SnowFox AI Readiness Assessment (1–2 days on-site, fixed fee $5K–$10K): hands-on data review, prioritized use-case shortlist, and a governance plan tailored to the prospect's industry and operations."
+    "If you'd like a deeper, hands-on review, SnowFox offers a paid AI Readiness Assessment that adds a hands-on data review, a prioritized use-case shortlist, and a governance plan tailored to your industry and operations."
+  );
+  drawParagraph(
+    ctx,
+    "Reply to your results email — or reach out directly — and a senior business advisor will be in touch to walk through this plan with you."
   );
   ctx.y -= 4;
   drawText(ctx, "SnowFox Solutions", { font: ctx.fonts.bold, size: 11, color: NAVY_900 });
@@ -602,7 +608,7 @@ function decorateAllPages(doc: PDFDocument, fonts: Fonts) {
     // Brand strip across the bottom
     p.drawRectangle({ x: 0, y: 0, width: PAGE_W, height: 24, color: NAVY });
     p.drawRectangle({ x: 0, y: 24, width: PAGE_W, height: 2, color: FOX_RED });
-    p.drawText("SnowFox AI Strategy Plan · Confidential", {
+    p.drawText("SnowFox AI Strategy Plan", {
       x: MARGIN_X,
       y: 8,
       size: 8.5,
@@ -637,8 +643,8 @@ const RECOMMENDATIONS: Record<CategoryCode, Rec> = {
   },
   DAT: {
     what: "Inventory the data that matters, fix accuracy and accessibility for the top three sources, and assign data owners.",
-    why: "Generative AI on top of dirty, siloed data produces confident-sounding nonsense. Data readiness is the rate-limiter for every downstream use case.",
-    firstMove: "Run a SnowFox data-readiness diagnostic on the three highest-leverage data sources and produce a 90-day remediation plan.",
+    why: "AI built on inconsistent or siloed data produces unreliable results. Data readiness is the rate-limiter for every downstream use case.",
+    firstMove: "Run a data-readiness diagnostic on the three highest-leverage data sources and produce a 90-day remediation plan. SnowFox can lead this engagement.",
   },
   TECH: {
     what: "Modernize integration and security to a baseline that supports event-driven AI workloads and least-privilege access.",
@@ -653,22 +659,22 @@ const RECOMMENDATIONS: Record<CategoryCode, Rec> = {
   PRO: {
     what: "Document and instrument the top five end-to-end processes so AI has a measurable target to improve.",
     why: "AI improves outcomes against a measurable baseline. Undocumented, unmeasured processes give nothing for AI to attach to.",
-    firstMove: "Pick the most painful process today; SnowFox runs a one-day process diagnostic that turns it into an AI-ready candidate.",
+    firstMove: "Pick the most painful process today and run a one-day process diagnostic to turn it into an AI-ready candidate. SnowFox can facilitate this exercise.",
   },
   USE: {
     what: "Move from idea-list to a prioritized use-case portfolio with quantified ROI and a 90-day shipping pilot.",
     why: "Long lists of AI ideas with no ROI estimate or owner are how budgets get burned. A portfolio with one shipping pilot creates momentum.",
-    firstMove: "Run a SnowFox use-case prioritization workshop and pick one pilot that can ship in 90 days.",
+    firstMove: "Hold a use-case prioritization workshop and pick one pilot that can ship in 90 days. SnowFox can facilitate the workshop and help scope the pilot.",
   },
   ETH: {
     what: "Publish a one-page Responsible AI policy plus a lightweight intake review for any new AI use case.",
     why: "Even small AI deployments create regulatory, brand, and customer-trust exposure. A pragmatic policy unblocks delivery instead of slowing it.",
-    firstMove: "Adopt the SnowFox Responsible AI starter policy and customize it to the prospect's industry.",
+    firstMove: "Adopt a Responsible AI starter policy and customize it to your industry. SnowFox can share a template and help adapt it.",
   },
   FIN: {
     what: "Move from project-by-project funding to a small but committed annual AI budget with clear stage gates.",
     why: "Without a committed budget, every initiative starts from zero, ROI conversations are constant, and momentum is lost between fiscal years.",
-    firstMove: "Help the prospect build a 3-tier AI budget proposal (run / grow / transform) for the next fiscal-year cycle.",
+    firstMove: "Build a 3-tier AI budget proposal (run / grow / transform) for the next fiscal-year cycle. SnowFox can help you structure and defend the proposal.",
   },
 };
 
