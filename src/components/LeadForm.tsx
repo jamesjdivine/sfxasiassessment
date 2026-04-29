@@ -12,7 +12,6 @@ export default function LeadForm({ sessionId, onSuccess }: Props) {
     fullName: "",
     workEmail: "",
     company: "",
-    phone: "",
     jobTitle: "",
     notes: "",
   });
@@ -74,7 +73,6 @@ export default function LeadForm({ sessionId, onSuccess }: Props) {
           {field("workEmail", "Work email", "email", true)}
           {field("company", "Company")}
           {field("jobTitle", "Job title")}
-          {field("phone", "Phone")}
         </div>
 
         <label className="block mt-4">
